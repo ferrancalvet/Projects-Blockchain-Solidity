@@ -1,0 +1,69 @@
+// License
+// SPDX-License-Identifier: LGPL-3.0-only
+
+//Solidity version
+pragma solidity 0.8.24;
+
+//Contract
+contract PropertyRegistry {
+
+    // Structure to store the details of each property
+    struct Property {
+        uint256 id;
+        string description;
+        address owner; 
+
+    }
+
+    //Mapping to store properties by ID
+    mapping (uint256 => Property) public properties;
+
+    // automatic ID implementation
+    uint256 public nextPropertyId = 1; //el contrato debe gestionar automaticamente y de forma incremental ca ID nuevo que se inscriba.
+
+    //Event for register activity 
+    event PropertyRegistered (uint256 id, string description, address owner); //Permite que las aplicaciones externas sepan que algo importante ha sucedido en el contrato
+    event OwnershipTransferred (uint256 indexed id, address indexed previousOwner, address indexed newOwner); // y que parametros se vieron afectados.
+    
+    //Modifier
+    //creamos una regla reutilizable (modifier) para asegurar que ciertas funciones solo puedan ser llamadas si se cumple la condición.
+    //en este caso, que el que llama (msg.sender) sea el dueño de la propiedad.
+    modifier onlyOwner (uint256 _id) {
+        require (properties[_id].owner == msg.sender, "is not the Owner");
+        _;
+    }
+
+    //function to register a new peoperty
+    function registerProperty (string  calldata _description) public {
+        uint256 newId= nextPropertyId;
+        nextPropertyId++; //preparamos contador para próxima propiedad
+        
+    //actualización de Datos (creación de la Propiedad en el Storage)
+    properties[newId] = Property ({
+        id: newId, 
+        description: _description,
+        owner: msg.sender});
+
+    emit PropertyRegistered (newId, _description, msg.sender);
+    }
+
+    //Function to transfer the Ownership
+    function transferOwnership (uint256 _id, address _newOwner) public onlyOwner(_id) { //creamos la funcion para trasnferir. le aplicamos el modificador onlyowner.
+        require (_newOwner != address(0), "invalid address"); // verificamos que la dirección de destino no sea la dirección nula antes de transferir. evita perdidas accidentales.
+        require(_newOwner != properties[_id].owner, "Cannot transfer to self"); //para evitar autotransferencia
+
+    address previousOwner  = properties[_id].owner;
+    properties[_id].owner = _newOwner; //cambiamos el valor de la variable de estado en el almacenamiento
+
+    emit OwnershipTransferred(_id,  previousOwner, _newOwner);
+
+    }
+
+    //consultation function
+    function getProperty (uint256 _id) public view returns (Property memory ) {
+        require(properties[_id].owner != address(0), "Property not registered");
+        return properties [_id];
+        
+    }
+
+}
